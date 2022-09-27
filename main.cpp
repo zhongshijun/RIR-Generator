@@ -201,12 +201,15 @@ int main(int argc, char* argv[])
 
     string outRirPath = "D:\\HMScloud\\RIR-Generator-master\\RIR-Generator-master\\rir\\";
 
-    int rirNum = 20000;
+    int rirNum = 25000;
     // 房间大小
     int roomHeightMax = 4; // m
     int roomWidthMax = 5;
     int roomLengthMax = 5;
     int RT60Max = 2; // 0.35s
+
+    int selectRirNum = 0;
+
     for (int i = 0; i < rirNum; ++i) {
         int W = rand() % roomWidthMax + 1;
         int L = rand() % roomLengthMax + 1;
@@ -274,89 +277,36 @@ int main(int argc, char* argv[])
 
         pcmFile.open(outFilePath, std::ifstream::out | std::ifstream::binary);
 
+        bool badCase = false;
         short* out_pcm = new short[nSamples];
         for (int i = 0; i < nSamples; ++i) {
             int tmp = (int)(32768 * rir_out[i]);
+
+            if (rir_out[i] >= 1.0 || rir_out[i] <= -1.0) {
+                badCase = true;
+                break;
+            }
+
             tmp = tmp > 32768 ? 32760 : tmp;
             tmp = tmp < -32760 ? 32760 : tmp;
 
             out_pcm[i] = (short)(tmp);
 
-
-            //printf("%hd, ", out_pcm[i]);
-            //if ((i + 1) % 10 == 0) {
-            //    printf("\n");
-            //}
         }
-        //printf("\n");
 
-        pcmFile.write((char *)out_pcm, nSamples * sizeof(short));
+        if (!badCase) {
+            selectRirNum++;
+            pcmFile.write((char *)out_pcm, nSamples * sizeof(short));
+        } else {
+            std::cout << "bad case!" << std::endl;
+        }
 
         delete[] out_pcm;
         pcmFile.close();
 
     }
 
-    //double receiverPosition[5] = {2, 1.5, 2};
-    //double sourcePosition[5] = {2, 3.5, 2};
-    //double roomDimensions[5] = {5, 4, 6};
-
-    //RIR_Params rirParams;
-    //
-    //rirParams.soundVelocity = 340; 
-    //rirParams.sampleRate = 48000;
-    //rirParams.rt60 = 0.5; // s
-
-    //rirParams.receiverPosition = receiverPosition;
-    //rirParams.sourcePosition = sourcePosition;
-    //rirParams.roomDimensions = roomDimensions;
-    //rirParams.roomDimension = 3;
-
-    //rirParams.hp_filter = 1;
-    //rirParams.micNum = 1;
-
-    //rirParams.reflectionOrder = -1;
-    //rirParams.microphoneType = 'o';
-
-    //double rir_out[50000];
-    //int nSamples = RirGenegatorFunction(rir_out, rirParams);
-
-    //std::cout << "nSample: " << nSamples << std::endl;
-    //
-    ///*for (int i = 0; i < nSamples; ++i) {
-    //    printf("%f, ", rir_out[i]);
-    //    if ((i + 1) % 10 == 0) {
-    //        printf("\n");
-    //    }
-    //}
-    //std::cout << std::endl;*/
-
-
-    //ofstream pcmFile;
-    //pcmFile.open("D:\\HMScloud\\RIR-Generator-master\\RIR-Generator-master\\rir_out.pcm", std::ifstream::out | std::ifstream::binary);
-
-    //short* out_pcm = new short[nSamples];
-    //for (int i = 0; i < nSamples; ++i) {
-    //    int tmp = (int)(32768 * rir_out[i]);
-    //    tmp = tmp > 32768 ? 32760 : tmp;
-    //    tmp = tmp < -32760 ? 32760 : tmp;
-
-    //    out_pcm[i] = (short)(tmp);
-
-
-    //    //printf("%hd, ", out_pcm[i]);
-    //    //if ((i + 1) % 10 == 0) {
-    //    //    printf("\n");
-    //    //}
-    //}
-    ////printf("\n");
-
-    //pcmFile.write((char *)out_pcm, nSamples * sizeof(short));
-
-    //pcmFile.close();
-
-
-    printf("Generator rir END!\n");
+    printf("selectRirNum = [%d], Generator rir END!\n", selectRirNum);
 
     return 0;
 }
