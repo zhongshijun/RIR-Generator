@@ -117,10 +117,13 @@ int RirGenegatorFunction(double *rir_out, RIR_Params &prhs)
     reverberation_time = beta_input;
     if (reverberation_time != 0) {
         double alfa = 24 * V*log(10.0) / (c*S*reverberation_time);
-        if (alfa > 1)
+        if (alfa > 1) {
             printf("Error: The reflection coefficients cannot be calculated using the current "
                 "room parameters, i.e. room size and reverberation time.\n           Please "
-                "specify the reflection coefficients or change the room parameters.");
+                "specify the reflection coefficients or change the room parameters.\n");
+            return -1;
+        }
+
         for (int i = 0; i < 6; i++)
             beta[i] = sqrt(1 - alfa);
     } else
@@ -193,7 +196,7 @@ int RirGenegatorFunction(double *rir_out, RIR_Params &prhs)
     return nSamples;
 }
 
-double rir_out[500000];
+
 
 int main(int argc, char* argv[])
 {
@@ -203,18 +206,17 @@ int main(int argc, char* argv[])
 
     int rirNum = 25000;
     // 房间大小
-    int roomHeightMax = 4; // m
-    int roomWidthMax = 5;
-    int roomLengthMax = 5;
+    int roomWidthMax = 3;
+    int roomLengthMax = 3;
+    int roomHeightMax = 2; // m
     int RT60Max = 2; // 0.35s
 
     int selectRirNum = 0;
-
+    srand((unsigned int)time(NULL));
     for (int i = 0; i < rirNum; ++i) {
-        int W = rand() % roomWidthMax + 1;
-        int L = rand() % roomLengthMax + 1;
-        int H = rand() % roomHeightMax + 1;
-        H = max(H, 2); // 房间高度最低2m
+        int W = rand() % roomWidthMax + 3;
+        int L = rand() % roomLengthMax + 3;
+        int H = rand() % roomHeightMax + 2;
 
         int rW = rand() % W;
         int rL = rand() % L;
@@ -224,9 +226,9 @@ int main(int argc, char* argv[])
         int sL = rand() % L;
         int sH = rand() % H;
 
-        double roomDimensions[5] = { 5, 4, 4 };
-        double receiverPosition[5] = { 2, 1.5, 2 };
-        double sourcePosition[5] = { 2, 3.5, 2 };
+        double roomDimensions[3];
+        double receiverPosition[3];
+        double sourcePosition[3];
 
         roomDimensions[0] = W + (rand() % 10 / 10.f);
         roomDimensions[1] = L + (rand() % 10 / 10.f);
@@ -246,6 +248,11 @@ int main(int argc, char* argv[])
         receiverPosition[2] = min(receiverPosition[2], 2.0);
         receiverPosition[2] = max(receiverPosition[2], 0.3);
 
+
+        printf("(%.2f, %.2f, %.2f), (%.2f, %.2f, %.2f), (%.2f, %.2f, %.2f)\n", roomDimensions[0], roomDimensions[1], roomDimensions[2], 
+                                                             sourcePosition[0], sourcePosition[1], sourcePosition[2],
+                                                             receiverPosition[0], receiverPosition[1], receiverPosition[2]);
+
         RIR_Params rirParams;
 
         rirParams.soundVelocity = 340;
@@ -264,7 +271,13 @@ int main(int argc, char* argv[])
         rirParams.reflectionOrder = -1;
         rirParams.microphoneType = 'o';
 
+        double rir_out[48000] = {0}; // max support 1s
         int nSamples = RirGenegatorFunction(rir_out, rirParams);
+        
+        if (nSamples == -1) {
+            std::cout << "Error: Please change room params." << std::endl;
+            continue;
+        }
 
         int rt60 = (int)(rirParams.rt60 * 1000); // ms
         //stringstream ss;
@@ -275,7 +288,6 @@ int main(int argc, char* argv[])
 
         std::cout << "path=>" << outFilePath << std::endl;
 
-        pcmFile.open(outFilePath, std::ifstream::out | std::ifstream::binary);
 
         bool badCase = false;
         short* out_pcm = new short[nSamples];
@@ -287,23 +299,22 @@ int main(int argc, char* argv[])
                 break;
             }
 
-            tmp = tmp > 32768 ? 32760 : tmp;
-            tmp = tmp < -32760 ? 32760 : tmp;
-
             out_pcm[i] = (short)(tmp);
-
         }
 
         if (!badCase) {
             selectRirNum++;
+
+            pcmFile.open(outFilePath, std::ifstream::out | std::ifstream::binary);
             pcmFile.write((char *)out_pcm, nSamples * sizeof(short));
+            pcmFile.close();
         } else {
             std::cout << "bad case!" << std::endl;
         }
 
-        delete[] out_pcm;
-        pcmFile.close();
+        printf("i: %d, rir num = %d\n", i, selectRirNum);
 
+        delete[] out_pcm;
     }
 
     printf("selectRirNum = [%d], Generator rir END!\n", selectRirNum);
